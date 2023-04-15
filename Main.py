@@ -1,5 +1,8 @@
 import pandas as pd
 import random as rd
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import time
 
 
 ######################################## BASIC FUNCTIONS ########################################################################################################################
@@ -14,12 +17,20 @@ def get_random_from_list(list1,list2):
 
 
 def get_random_from_list2(list1,list2):
-    """"return a random elemnt from list1 that is not in list2 (used when the list is not too big)"""
-    list_copy = list1[:]
-    rd.shuffle(list_copy)
-    for element in list_copy:
-        if element not in list2:
-            return element
+    """"
+    Returns a bool indicating if a field from list1 that is not in list2 was found and the field if it was found.
+    This method is used with small a list1.
+    """
+    found = False
+    found_field = None
+    list1_copy = list1[:]
+    rd.shuffle(list1_copy)
+    for field in list1_copy:
+        if field not in list2:
+            found = True
+            found_field = field
+            break
+    return (found,found_field)
 
 
 ######################################## DATA ########################################################################################################################
@@ -55,6 +66,8 @@ def generate_parent(free_fields,budget,cost_matrix,max_iter):
         parent.append(get_random_from_list(free_fields,parent))
         cost = int(cost_matrix[parent[-1][0]][parent[-1][1]])
         if(parent_budget +cost > budget):
+            #If the budget is exceeded, remove the last field and try again 
+            #with a maximum of max_iter tries to find a new one
             parent.remove(parent[-1])
             for i in range(max_iter):
                 field = get_random_from_list(free_fields,parent)
@@ -84,19 +97,23 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter):
     child_budget = 0
     parent1_budget = rd.choice(range(10,budget-10)) # Select a random budget that determines the number of fields passed by the 1st parent 
     #First part of the child
-    while (child_budget < parent1_budget):
-        child.append(get_random_from_list2(parent1,child))
-        cost = int(cost_matrix[child[-1][0]][child[-1][1]])
-        child_budget += cost
+    while (child_budget < parent1_budget and len(child) < len(parent1)):
+        found,field =get_random_from_list2(parent1,child) 
+        if(not found) : break
+        child.append(field)
+        child_budget += int(cost_matrix[child[-1][0]][child[-1][1]])
     #Second part of the child
-    while (child_budget < budget):
-        child.append(get_random_from_list2(parent2,child))
+    while (child_budget < budget and len(child) < len(parent1) + len(parent2)):
+        found,field = get_random_from_list2(parent2,child)
+        if(not found) : break
+        child.append(field)
         cost = int(cost_matrix[child[-1][0]][child[-1][1]])
         if(child_budget + cost > budget):
             child.remove(child[-1])
             combined_parent = parent1 + parent2
             for i in range(max_iter):
-                field = get_random_from_list2(combined_parent,child)
+                found,field = get_random_from_list2(combined_parent,child)
+                if(not found) : break
                 cost = int(cost_matrix[field[0]][field[1]])
                 if(child_budget + cost <= budget):
                     child.append(field)
@@ -114,7 +131,7 @@ def generate_child_second_methode(parents,free_fields,budget,cost_matrix):
 def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter):
     """Generate a new generation from the old one"""
     new_gen = []
-    production_score_list,compacity_score_list,average_distance_list = score_lists(score_list)
+    production_score_list,average_distance_list,compacity_score_list = score_lists(score_list)
     #Elitism
     elite_length = int(len(old_gen)*elite_portion)
     for i in range(elite_length):
@@ -123,10 +140,10 @@ def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_ma
             score_tuple = production_score_list.pop(0)
             new_gen.append(old_gen[score_tuple[0]])
         elif(random_nbr == 2):
-            score_tuple = compacity_score_list.pop(0)
+            score_tuple = average_distance_list.pop(0)
             new_gen.append(old_gen[score_tuple[0]])
         else:
-            score_tuple = average_distance_list.pop(0)
+            score_tuple = compacity_score_list.pop(0)
             new_gen.append(old_gen[score_tuple[0]])
     #Crossover
     while len(new_gen) < len(old_gen):
@@ -173,7 +190,7 @@ def compacity_score(parent):
     L = ( max(parent)[0] - min(parent)[0] ) + 1
     l = ( max(parent,key=lambda x:x[1])[1] - min(parent,key=lambda x:x[1])[1] ) + 1
     surface = L*l
-    adjacent_score = 0
+    adjacent_score = 1
     for field in parent:
         if((field[0]-1,field[1]) in parent):
             adjacent_score += 1
@@ -183,11 +200,11 @@ def compacity_score(parent):
             adjacent_score += 1
         if((field[0],field[1]+1) in parent):
             adjacent_score += 1
-    return adjacent_score/surface
+    return surface/adjacent_score
 
 
 def calculate_score(parent,habitation_list,production_matrix,distance_matrix):
-    """Calculate the score of a parent"""
+    """Calculate the score of a parent, returns a tuple (production,habitation,compacity)"""
     #Init
     prod_score = production_score(parent,production_matrix)
     habitation_average_distance = average_distance(parent,habitation_list,distance_matrix)
@@ -197,7 +214,7 @@ def calculate_score(parent,habitation_list,production_matrix,distance_matrix):
 
 
 def calculate_gen_score(gen,habitation_list,production_matrix,distance_matrix):
-    """Calculate the score of a generation"""
+    """Calculate the score of a generation, returns a list of tuples (production,habitation,compacity)"""
     score_list = []
     for parent in gen:
         score_list.append(calculate_score(parent,habitation_list,production_matrix,distance_matrix))
@@ -205,15 +222,65 @@ def calculate_gen_score(gen,habitation_list,production_matrix,distance_matrix):
 
 
 def score_lists(score_list):
-    """Return three lists with the best production, habitation and compacity scores"""
+    """
+    Return three lists with the best production, habitation and compacity scores.
+    Each list is a list of tuples (index,score)
+    """
     index_score_list = []
     for i in range(len(score_list)):
         index_score_list.append((i,score_list[i]))
     production_score_list = sorted(index_score_list,key=lambda x:x[1][0],reverse=True)
     habitation_score_list = sorted(index_score_list,key=lambda x:x[1][1])
-    compacity_score_list = sorted(index_score_list,key=lambda x:x[1][2],reverse=True)
+    compacity_score_list = sorted(index_score_list,key=lambda x:x[1][2])
     return production_score_list,habitation_score_list,compacity_score_list
 
+
+######################################## PARETO ########################################################################################################################
+
+
+def init_pareto(score_list,gen):
+    """Init the pareto list, returns a list of tuples (parent,(production,habitation,compacity))"""
+    pareto_list = []
+    for i in range(len(score_list)):
+        is_pareto = True
+        for solution in pareto_list:
+            if(solution[1][0] >= score_list[i][0] and solution[1][1] <= score_list[i][1] and solution[1][2] <= score_list[i][2]):
+                is_pareto = False
+                break
+        if(is_pareto):
+            pareto_list.append((gen[i],score_list[i]))
+    return pareto_list
+
+
+def update_pareto(pareto_list,score_list,gen):
+    """Update the pareto list, returns a list of tuples (parent,(production,habitation,compacity))"""
+    bad_solutions = []
+    for i in range(len(score_list)):
+        is_pareto = True
+        for solution in pareto_list:
+            if (solution[1][0] >= score_list[i][0] and solution[1][1] <= score_list[i][1] and solution[1][2] <= score_list[i][2]):
+                is_pareto = False
+                break
+            if (solution[1][0] <= score_list[i][0] and solution[1][1] >= score_list[i][1] and solution[1][2] >= score_list[i][2]):
+                if(solution not in bad_solutions):
+                    bad_solutions.append(solution)
+        if(is_pareto):
+            pareto_list.append((gen[i],score_list[i]))
+    #Remove bad solutions
+    for bad_solution in bad_solutions:
+        pareto_list.remove(bad_solution)
+    return pareto_list
+
+
+def test_pareto(pareto_list):
+    """Test if the pareto list is correct"""
+    for i in range(len(pareto_list)):
+        for j in range(len(pareto_list)):
+            if(i != j):
+                if(pareto_list[i][1][0] >= pareto_list[j][1][0] and pareto_list[i][1][1] <= pareto_list[j][1][1] and pareto_list[i][1][2] <= pareto_list[j][1][2]):
+                    print("Pareto error")
+                    return False
+    return True
 
 
 ######################################## MAIN ########################################################################################################################
@@ -221,13 +288,13 @@ def score_lists(score_list):
 
 def main():
     #Parameters
-    rd.seed(123)
-    gen_length = 100
-    gen_nbr = 10
+    #rd.seed()
+    gen_length = 100  #number of parents in a generation
+    gen_nbr = 10000  #number of generations
     budget = 50
-    elite_portion = 0.3
-    mutate_rate = 0.5
-    max_iter = 100
+    elite_portion = 0.3  #portion of the best parents that will be kept in the next generation
+    mutate_rate = 0.5  #rate of mutation
+    max_iter = 100  #maximum number of tries to find a field that fits the budget
     #Read the data
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
     production_matrix = get_matrix('donnes_V2\Production_map.txt')
@@ -235,17 +302,40 @@ def main():
     habitation_list = get_list(map_matrix,'C')
     free_fields = get_list(map_matrix,' ')
     distance_matrix = [[-1 for i in range(len(map_matrix))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
-    #Init
+    #Init gen and score_list
     gen = generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter)
     score_list = calculate_gen_score(gen,habitation_list,production_matrix,distance_matrix)
+    #Init plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    #Init pareto
+    pareto_list = init_pareto(score_list,gen) #list of pareto solutions = (parent,score)
+    #Main Loop
     for i in range(gen_nbr):
+        #Genrate the new generation and calculate the score of the new generation
         new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter)
         new_score_list = calculate_gen_score(new_gen,habitation_list,production_matrix,distance_matrix)
+        #Plot
+        pareto_list = update_pareto(pareto_list,new_score_list,new_gen)
         gen = new_gen[:]
         score_list = new_score_list[:]
-        print(gen[0])
-        print(score_list[0])
-    
+        print("Generation",i+1,"/",gen_nbr)
+    solutions,coordinates = zip(*pareto_list)
+    x,y,z = zip(*coordinates)
+    ax.scatter(x,y,z)
+    ax.set_xlabel('Production')
+    ax.set_ylabel('Habitation')
+    ax.set_zlabel('Compacity')
+    prod,hab,comp = score_lists(score_list)
+    print("Best production score:",prod[0][1][0])
+    print("Best habitation score:",hab[0][1][1])
+    print("Best compacity score:",comp[0][1][2])
+    print(test_pareto(pareto_list))
+    plt.show()
+
 
 if __name__ == '__main__':
+    start = time.time()
     main()
+    end = time.time()
+    print("Time:",end-start)
