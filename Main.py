@@ -16,6 +16,18 @@ def get_random_from_list(list1,list2):
     return element
 
 
+def budget_check(child,free_fields,cost_matrix,child_budget,budget):
+    """Check if the budget is respected"""
+    if (child_budget > budget):
+        child_budget -= int(cost_matrix[child[-1][0]][child[-1][1]])
+        child.remove(child[-1])
+        child.append(get_random_from_list(free_fields,child))
+        child_budget += int(cost_matrix[child[-1][0]][child[-1][1]])
+        child_budget = budget_check(child,free_fields,cost_matrix,child_budget,budget)
+        
+    return child_budget
+
+
 def get_random_from_list2(list1,list2):
     """"
     Returns a bool indicating if a field from list1 that is not in list2 was found and the field if it was found.
@@ -91,7 +103,7 @@ def generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter):
     return parents
 
 
-def generate_child(parent1,parent2,budget,cost_matrix,max_iter):
+def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_fields):
     """Generate a child from two parents"""
     child = []
     child_budget = 0
@@ -121,14 +133,17 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter):
             break
         else:
             child_budget += cost
+    #Mutation
+        if(rd.random() < mutate_rate):
+            child_budget -= int(cost_matrix[child[-1][0]][child[-1][1]])
+            child.remove(rd.choice(child))
+            child.append(get_random_from_list(free_fields,child))
+            child_budget += int(cost_matrix[child[-1][0]][child[-1][1]])
+            child_budget = budget_check(child,free_fields,cost_matrix,child_budget,budget)
     return child
 
-def generate_child_second_methode(parents,free_fields,budget,cost_matrix):
-    #ordonner les deux parents de sorte que les terrains sont localisés et couper a un endroit et mélanger les gènes ce qui donnera
-    #des terrains déjà localisés pour les enfants 
-    return None
 
-def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter):
+def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields):
     """Generate a new generation from the old one"""
     new_gen = []
     production_score_list,average_distance_list,compacity_score_list = score_lists(score_list)
@@ -148,9 +163,8 @@ def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_ma
     #Crossover
     while len(new_gen) < len(old_gen):
         nums = rd.sample(range(0,elite_length),2)
-        child = generate_child(old_gen[nums[0]],old_gen[nums[1]],budget,cost_matrix,max_iter)
+        child = generate_child(old_gen[nums[0]],old_gen[nums[1]],budget,cost_matrix,max_iter,mutate_rate,free_fields)
         new_gen.append(child)
-    #Mutation
     return new_gen
 
 
@@ -283,18 +297,59 @@ def test_pareto(pareto_list):
     return True
 
 
+######################################## PROMETHEE ########################################################################################################################
+
+def promethee(score1,score2,weights,preference):
+    """Calculate the promethee score of a solution"""
+    score = 0
+    for i in range(len(score1)):
+        difference = score1[i] - score2[i]
+        if(difference > 0):
+            if(difference > preference[i][0]):
+                if(difference < preference[i][1]):
+                    score += weights[i]*(difference-preference[i][0])/(preference[i][1]-preference[i][0])
+                else:
+                    score += weights[i]
+    return score
+
+
+def create_promethee_list(pareto_list,score_list,weights,preference):
+    """Create the promethee list"""
+    promethee_list =[[0 for i in range(len(pareto_list))] for j in range(len(pareto_list))]
+    for i in range(len(pareto_list)):
+        promethee_list[i][i] = 0
+        for j in range(i+1,len(pareto_list)):
+            promethee_list[i][j] = promethee(score_list[i],score_list[j],weights,preference)
+            promethee_list[j][i] = promethee(score_list[j],score_list[i],weights,preference)
+    return promethee_list
+
+
+def calculate_promethee_score(promethee_list):
+    """Calculate the promethee score of a generation, returns a list of tuples (index,score)"""
+    promethee_score_list = []
+    for i in range(len(promethee_list)):
+        positive_score = sum(promethee_list[i])
+        negative_score = 0
+        for j in range(len(promethee_list)):
+            negative_score += promethee_list[j][i]
+        promethee_score_list.append((i,positive_score-negative_score))
+    return promethee_score_list
+
 ######################################## MAIN ########################################################################################################################
 
 
 def main():
     #Parameters
     #rd.seed()
-    gen_length = 100  #number of parents in a generation
-    gen_nbr = 10000  #number of generations
+    gen_length = 500  #number of parents in a generation
+    gen_nbr = 100  #number of generations
     budget = 50
     elite_portion = 0.3  #portion of the best parents that will be kept in the next generation
-    mutate_rate = 0.5  #rate of mutation
+    mutate_rate = 0.05  #rate of mutation
     max_iter = 100  #maximum number of tries to find a field that fits the budget
+    #Promethee parameters
+    weights = (0.5,0.5,0.5) #weights of the criteria (production,habitation,compacity)
+    preference = ((0.5,1),(0.5,1),(0.5,1)) #preference of the criteria (min,max) (production,habitation,compacity)
     #Read the data
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
     production_matrix = get_matrix('donnes_V2\Production_map.txt')
@@ -313,7 +368,7 @@ def main():
     #Main Loop
     for i in range(gen_nbr):
         #Genrate the new generation and calculate the score of the new generation
-        new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter)
+        new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields)
         new_score_list = calculate_gen_score(new_gen,habitation_list,production_matrix,distance_matrix)
         #Plot
         pareto_list = update_pareto(pareto_list,new_score_list,new_gen)
@@ -321,15 +376,19 @@ def main():
         score_list = new_score_list[:]
         print("Generation",i+1,"/",gen_nbr)
     solutions,coordinates = zip(*pareto_list)
+    #Promethee
+    promethee_list = creat_promethee_list(pareto_list,weights,preference)
+
     x,y,z = zip(*coordinates)
     ax.scatter(x,y,z)
     ax.set_xlabel('Production')
     ax.set_ylabel('Habitation')
     ax.set_zlabel('Compacity')
-    prod,hab,comp = score_lists(score_list)
+    prod,hab,comp = score_lists(coordinates)
     print("Best production score:",prod[0][1][0])
     print("Best habitation score:",hab[0][1][1])
     print("Best compacity score:",comp[0][1][2])
+    print(solutions[comp[0][0]])
     print(test_pareto(pareto_list))
     plt.show()
 
