@@ -1,11 +1,21 @@
 import pandas as pd
 import random as rd
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import time
+import turtle
 
 
 ######################################## BASIC FUNCTIONS ########################################################################################################################
+
+
+def get_budget(parent,cost_matrix):
+    """Return the budget of a parent"""
+    budget = 0
+    for field in parent:
+        budget += int(cost_matrix[field[0]][field[1]])
+    return budget
 
 
 def get_random_from_list(list1,list2):
@@ -139,8 +149,18 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_
             child_budget -= int(cost_matrix[field_to_mutate[0]][field_to_mutate[1]])
             child.remove(field_to_mutate)
             child.append(get_random_from_list(free_fields,child))
-            child_budget += int(cost_matrix[child[-1][0]][child[-1][1]])
-            child_budget = budget_check(child,free_fields,cost_matrix,child_budget,budget)
+            cost = int(cost_matrix[child[-1][0]][child[-1][1]])
+            if (child_budget + cost > budget ):
+                child.remove(child[-1])
+                for i in range(max_iter):
+                    field = get_random_from_list(free_fields,child)
+                    cost = int(cost_matrix[field[0]][field[1]])
+                    if(child_budget +cost <= budget) :
+                        child.append(field)
+                        child_budget += cost
+                        break
+            else :
+                child_budget += cost
     return child
 
 
@@ -326,7 +346,7 @@ def create_promethee_list(pareto_list,score_list,weights,preference):
 
 
 def calculate_promethee_score(promethee_list):
-    """Calculate the promethee score of a generation, returns a list of tuples (index,score)"""
+    """Calculate the promethee score of a generation, returns a sorted list of tuples (index,score)"""
     promethee_score_list = []
     for i in range(len(promethee_list)):
         positive_score = sum(promethee_list[i])
@@ -334,7 +354,33 @@ def calculate_promethee_score(promethee_list):
         for j in range(len(promethee_list)):
             negative_score += promethee_list[j][i]
         promethee_score_list.append((i,positive_score-negative_score))
-    return promethee_score_list
+    return sorted(promethee_score_list,key=lambda x:x[1],reverse=True)
+
+
+######################################## MAP OUTPUT ########################################################################################################################
+
+
+def show_map (map_matrix,solution):
+    """Show the map"""
+    # Channge map_matrix to show the solution
+    cmap = plt.get_cmap('winter')
+    bounds = ['C', 'R', ' ','S']
+    norm = plt.Normalize(vmin=0, vmax=3)
+    # Convert the matrix to a NumPy array of chr
+    indices = {c: i for i, c in enumerate(bounds)}
+    data = np.array([[indices['S'] if (line, col) in solution[0] else indices[map_matrix[line][col]] for col in range(len(map_matrix[line]))] for line in range(len(map_matrix))])
+    # Create a heatmap using Matplotlib
+    fig, ax = plt.subplots()
+    heatmap = ax.imshow(data, cmap=cmap, norm=norm)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # ajoute un texte dans lequel on peut indiquer le score de production et le coût par exemple : 
+    ax.text(0.5, -0.1, f"La production de cette exploitation agricole est de {solution[1][0]}.",
+            transform=ax.transAxes,
+            ha='center', va='center')
+    # Show the plot
+    plt.show()
+
 
 ######################################## MAIN ########################################################################################################################
 
@@ -342,15 +388,15 @@ def calculate_promethee_score(promethee_list):
 def main():
     #Parameters
     #rd.seed()
-    gen_length = 500  #number of parents in a generation
-    gen_nbr = 500  #number of generations
+    gen_length = 1000  #number of parents in a generation
+    gen_nbr = 1000 #number of generations
     budget = 50
     elite_portion = 0.3  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.05  #rate of mutation
-    max_iter = 100  #maximum number of tries to find a field that fits the budget
+    max_iter = 10  #maximum number of tries to find a field that fits the budget
     #Promethee parameters
-    weights = (0.5,0.5,0.5) #weights of the criteria (production,habitation,compacity)
-    preference = ((0.5,1),(0.5,1),(0.5,1)) #preference of the criteria (min,max) (production,habitation,compacity)
+    weights = (0.3,0.2,0.9) #weights of the criteria (production,habitation,compacity)
+    preference = ((10,50),(5,15),(10,200)) #preference of the criteria (min,max) (production,habitation,compacity)
     #Read the data
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
     production_matrix = get_matrix('donnes_V2\Production_map.txt')
@@ -378,22 +424,25 @@ def main():
         print("Generation",i+1,"/",gen_nbr)
     solutions,coordinates = zip(*pareto_list)
     #Promethee
-    promethee_list = creat_promethee_list(pareto_list,weights,preference)
-
+    promethee_list = create_promethee_list(pareto_list,coordinates,weights,preference)
+    promethee_score_list = calculate_promethee_score(promethee_list)
     x,y,z = zip(*coordinates)
     ax.scatter(x,y,z)
     ax.set_xlabel('Production')
     ax.set_ylabel('Habitation')
     ax.set_zlabel('Compacity')
+    ax.set_zlim(0,1000)
     prod,hab,comp = score_lists(coordinates)
     print("Best production score:",prod[0][1][0])
     print("Best habitation score:",hab[0][1][1])
     print("Best compacity score:",comp[0][1][2])
-    print(solutions[comp[0][0]])
     print(test_pareto(pareto_list))
     plt.show()
-
-
+    #Show Map 
+    best_solution = pareto_list[promethee_score_list[0][0]] # (index,score)
+    print("PHC",best_solution[1])
+    print("budget",get_budget(best_solution[0],cost_matrix))
+    show_map(map_matrix,best_solution)
 if __name__ == '__main__':
     start = time.time()
     main()
