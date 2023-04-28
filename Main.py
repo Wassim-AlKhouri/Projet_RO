@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import time
-import turtle
 
 
 ######################################## BASIC FUNCTIONS ########################################################################################################################
@@ -102,7 +101,7 @@ def get_matrix(path):
         return matrix
 
 
-def get_list(map_matrix, char):
+def get_habitation_list(map_matrix, char):
     """Return a list of the coordinates of the habitations"""
     habitation_list = []
     for i in range(len(map_matrix)):
@@ -306,7 +305,8 @@ def calculate_fitness(score,weights):
     #fitness = (production-habitation) / compacity but always positive
     fitness = 0
     if(score[0] > score[1]):
-        fitness = ( (score[0]*weights[0]) - (score[1]*weights[1]) ) / (score[2]* (1 - weights[2]) )
+        fitness = (score[0] - score[1]) / score[2]
+        #fitness = ( (score[0]*weights[0]) - (score[1]*weights[1]) ) / (score[2]* (1 - weights[2]) )
     return fitness
 
 
@@ -447,7 +447,7 @@ def main():
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
     production_matrix = get_matrix('donnes_V2\Production_map.txt')
     map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
-    habitation_list = get_list(map_matrix,'C')
+    habitation_list = get_habitation_list(map_matrix,'C')
     free_fields = get_free_fields(map_matrix)
     distance_matrix = [[-1 for i in range(len(map_matrix[j]))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
     #Init gen and score_list
@@ -483,7 +483,6 @@ def main():
     print("Best habitation score:",hab[0][1][1])
     print("Best compacity score:",comp[0][1][2])
     print(test_pareto(pareto_list))
-    #plt.show()
     #Show Map 
     best_solution = solutions[promethee_score_list[0][0]]
     best_solution_score = coordinates[promethee_score_list[0][0]]
