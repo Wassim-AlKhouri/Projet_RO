@@ -38,10 +38,10 @@ def budget_check(child,free_fields,cost_matrix,child_budget,budget):
     return child_budget
 
 
-def get_random_from_list2(list1,list2):
+def get_random_from_small_list(list1,list2):
     """"
     Returns a bool indicating if a field from list1 that is not in list2 was found and the field if it was found.
-    This method is used with small a list1.
+    This method is used for small list1.
     """
     found = False
     found_field = None
@@ -53,6 +53,40 @@ def get_random_from_list2(list1,list2):
             found_field = field
             break
     return (found,found_field)
+
+
+def search_for_field(budget, cost_matrix, max_iter, free_fields, child, child_budget):
+    """
+    Search for a field that is not in the child and add it to the child if the budget is respected.
+    Searches for max_iter times.
+    """
+    child.remove(child[-1])
+    for i in range(max_iter):
+        field = get_random_from_list(free_fields,child)
+        cost = int(cost_matrix[field[0]][field[1]])
+        if(child_budget +cost <= budget) :
+            child.append(field)
+            child_budget += cost
+            break
+    return cost
+
+
+def search_for_field2(parent, budget, cost_matrix, max_iter, child, child_budget):
+    """
+    Search for a field in the parent that is not in the child and add it to the child if the budget is respected.
+    Searches for max_iter times.
+    (This method is used for small parent list)
+    """
+    child.remove(child[-1])
+    for i in range(max_iter):
+        found,field = get_random_from_small_list(parent,child)
+        if(not found) : break
+        cost = int(cost_matrix[field[0]][field[1]])
+        if(child_budget + cost <= budget):
+            child.append(field)
+            child_budget += cost
+            break
+    return child_budget
 
 
 ######################################## DATA ########################################################################################################################
@@ -67,6 +101,7 @@ def get_matrix(path):
                 matrix.append(line[:len(line)-1])
         return matrix
 
+
 def get_list(map_matrix, char):
     """Return a list of the coordinates of the habitations"""
     habitation_list = []
@@ -75,6 +110,16 @@ def get_list(map_matrix, char):
             if map_matrix[i][j] == char:
                 habitation_list.append((i,j))
     return habitation_list
+
+
+def get_free_fields(map_matrix):
+    """Return a list of the coordinates of the free fields"""
+    free_fields = []
+    for i in range(len(map_matrix)):
+        for j in range(len(map_matrix[i])):
+            if(map_matrix[i][j] == ' '):
+                free_fields.append((i,j))
+    return free_fields
 
 
 ######################################## GEN ########################################################################################################################
@@ -88,8 +133,6 @@ def generate_parent(free_fields,budget,cost_matrix,max_iter):
         parent.append(get_random_from_list(free_fields,parent))
         cost = int(cost_matrix[parent[-1][0]][parent[-1][1]])
         if(parent_budget +cost > budget):
-            #If the budget is exceeded, remove the last field and try again 
-            #with a maximum of max_iter tries to find a new one
             parent.remove(parent[-1])
             for i in range(max_iter):
                 field = get_random_from_list(free_fields,parent)
@@ -113,6 +156,19 @@ def generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter):
     return parents
 
 
+def mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget):
+    """Mutate a child"""
+    field_to_mutate = rd.choice(child)
+    child_budget -= int(cost_matrix[field_to_mutate[0]][field_to_mutate[1]])
+    child.remove(field_to_mutate)
+    child.append(get_random_from_list(free_fields,child))
+    cost = int(cost_matrix[child[-1][0]][child[-1][1]])
+    if (child_budget + cost > budget ):
+        cost = search_for_field(budget, cost_matrix, max_iter, free_fields, child, child_budget)
+    else :
+        child_budget += cost
+
+
 def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_fields):
     """Generate a child from two parents"""
     child = []
@@ -120,67 +176,43 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_
     parent1_budget = rd.choice(range(10,budget-10)) # Select a random budget that determines the number of fields passed by the 1st parent 
     #First part of the child
     while (child_budget < parent1_budget and len(child) < len(parent1)):
-        found,field =get_random_from_list2(parent1,child) 
+        found,field =get_random_from_small_list(parent1,child) 
         if(not found) : break
         child.append(field)
         child_budget += int(cost_matrix[child[-1][0]][child[-1][1]])
     #Second part of the child
     while (child_budget < budget and len(child) < len(parent1) + len(parent2)):
-        found,field = get_random_from_list2(parent2,child)
+        found,field = get_random_from_small_list(parent2,child)
         if(not found) : break
         child.append(field)
         cost = int(cost_matrix[child[-1][0]][child[-1][1]])
         if(child_budget + cost > budget):
-            child.remove(child[-1])
-            combined_parent = parent1 + parent2
-            for i in range(max_iter):
-                found,field = get_random_from_list2(combined_parent,child)
-                if(not found) : break
-                cost = int(cost_matrix[field[0]][field[1]])
-                if(child_budget + cost <= budget):
-                    child.append(field)
-                    child_budget += cost
+            combined_parents = parent1 + parent2
+            child_budget = search_for_field2(combined_parents, budget, cost_matrix, max_iter, child, child_budget)
             break
         else:
             child_budget += cost
     #Mutation
         if(rd.random() < mutate_rate):
-            field_to_mutate = rd.choice(child)
-            child_budget -= int(cost_matrix[field_to_mutate[0]][field_to_mutate[1]])
-            child.remove(field_to_mutate)
-            child.append(get_random_from_list(free_fields,child))
-            cost = int(cost_matrix[child[-1][0]][child[-1][1]])
-            if (child_budget + cost > budget ):
-                child.remove(child[-1])
-                for i in range(max_iter):
-                    field = get_random_from_list(free_fields,child)
-                    cost = int(cost_matrix[field[0]][field[1]])
-                    if(child_budget +cost <= budget) :
-                        child.append(field)
-                        child_budget += cost
-                        break
-            else :
-                child_budget += cost
+            mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget)
+            if(rd.random() < mutate_rate):
+                mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget)
     return child
 
 
-def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields):
+def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights):
     """Generate a new generation from the old one"""
     new_gen = []
-    production_score_list,average_distance_list,compacity_score_list = score_lists(score_list)
+    #production_score_list,average_distance_list,compacity_score_list = score_lists(score_list)
     #Elitism
     elite_length = int(len(old_gen)*elite_portion)
+    fitness_list = [] #List of tuples (index,fitness)
+    for i in range(len(old_gen)):
+        fitness_list.append((i,calculate_fitness(score_list[i],weights)))
+    fitness_list.sort(key=lambda x: x[1],reverse=True)
+    print("best fitness :" , fitness_list[0][1])
     for i in range(elite_length):
-        random_nbr = rd.choice([1,2,3])
-        if(random_nbr == 1):
-            score_tuple = production_score_list.pop(0)
-            new_gen.append(old_gen[score_tuple[0]])
-        elif(random_nbr == 2):
-            score_tuple = average_distance_list.pop(0)
-            new_gen.append(old_gen[score_tuple[0]])
-        else:
-            score_tuple = compacity_score_list.pop(0)
-            new_gen.append(old_gen[score_tuple[0]])
+        new_gen.append(old_gen[fitness_list[i][0]])
     #Crossover
     while len(new_gen) < len(old_gen):
         nums = rd.sample(range(0,elite_length),2)
@@ -269,6 +301,14 @@ def score_lists(score_list):
     compacity_score_list = sorted(index_score_list,key=lambda x:x[1][2])
     return production_score_list,habitation_score_list,compacity_score_list
 
+def calculate_fitness(score,weights):
+    """Calculate the fitness of a parent, returns a float"""
+    #fitness = (production-habitation) / compacity but always positive
+    fitness = 0
+    if(score[0] > score[1]):
+        fitness = ( (score[0]*weights[0]) - (score[1]*weights[1]) ) / (score[2]* (1 - weights[2]) )
+    return fitness
+
 
 ######################################## PARETO ########################################################################################################################
 
@@ -321,10 +361,13 @@ def test_pareto(pareto_list):
 ######################################## PROMETHEE ########################################################################################################################
 
 def promethee(score1,score2,weights,preference):
-    """Calculate the promethee score of a solution"""
+    """Calculate the promethee score of solution 1 compared to solution 2"""
     score = 0
-    for i in range(len(score1)):
-        difference = score1[i] - score2[i]
+    for i in range(len(score1)): #Criteria to maximize (production)
+        if(i == 0): 
+            difference = score1[i] - score2[i]
+        else : #Criteria to minimize (habitation and compacity)
+            difference = score2[i] - score1[i]
         if(difference > 0):
             if(difference > preference[i][0]):
                 if(difference < preference[i][1]):
@@ -334,25 +377,28 @@ def promethee(score1,score2,weights,preference):
     return score
 
 
-def create_promethee_list(pareto_list,score_list,weights,preference):
+def create_promethee_list(score_list,weights,preference):
     """Create the promethee list"""
-    promethee_list =[[0 for i in range(len(pareto_list))] for j in range(len(pareto_list))]
-    for i in range(len(pareto_list)):
+    promethee_list =[[0 for i in range(len(score_list))] for j in range(len(score_list))]
+    for i in range(len(score_list)):
         promethee_list[i][i] = 0
-        for j in range(i+1,len(pareto_list)):
-            promethee_list[i][j] = promethee(score_list[i],score_list[j],weights,preference)
-            promethee_list[j][i] = promethee(score_list[j],score_list[i],weights,preference)
+        for j in range(len(score_list)):
+            if(i != j):
+                promethee_list[i][j] = promethee(score_list[i],score_list[j],weights,preference)
+                promethee_list[j][i] = promethee(score_list[j],score_list[i],weights,preference)
     return promethee_list
 
 
-def calculate_promethee_score(promethee_list):
+def calculate_promethee_score(score_list,weights,preference):
     """Calculate the promethee score of a generation, returns a sorted list of tuples (index,score)"""
     promethee_score_list = []
+    promethee_list = create_promethee_list(score_list,weights,preference)
     for i in range(len(promethee_list)):
-        positive_score = sum(promethee_list[i])
+        positive_score = sum(promethee_list[i]) / len(promethee_list)
         negative_score = 0
         for j in range(len(promethee_list)):
             negative_score += promethee_list[j][i]
+        negative_score /= len(promethee_list)
         promethee_score_list.append((i,positive_score-negative_score))
     return sorted(promethee_score_list,key=lambda x:x[1],reverse=True)
 
@@ -360,7 +406,7 @@ def calculate_promethee_score(promethee_list):
 ######################################## MAP OUTPUT ########################################################################################################################
 
 
-def show_map (map_matrix,solution):
+def show_map (map_matrix,solution,scores):
     """Show the map"""
     # Channge map_matrix to show the solution
     cmap = plt.get_cmap('winter')
@@ -368,14 +414,14 @@ def show_map (map_matrix,solution):
     norm = plt.Normalize(vmin=0, vmax=3)
     # Convert the matrix to a NumPy array of chr
     indices = {c: i for i, c in enumerate(bounds)}
-    data = np.array([[indices['S'] if (line, col) in solution[0] else indices[map_matrix[line][col]] for col in range(len(map_matrix[line]))] for line in range(len(map_matrix))])
+    data = np.array([[indices['S'] if (line, col) in solution else indices[map_matrix[line][col]] for col in range(len(map_matrix[line]))] for line in range(len(map_matrix))])
     # Create a heatmap using Matplotlib
     fig, ax = plt.subplots()
     heatmap = ax.imshow(data, cmap=cmap, norm=norm)
     ax.set_xticks([])
     ax.set_yticks([])
     # ajoute un texte dans lequel on peut indiquer le score de production et le coût par exemple : 
-    ax.text(0.5, -0.1, f"La production de cette exploitation agricole est de {solution[1][0]}.",
+    ax.text(0.5, -0.1, f"La production de cette exploitation agricole est de {scores[0]}.",
             transform=ax.transAxes,
             ha='center', va='center')
     # Show the plot
@@ -388,22 +434,22 @@ def show_map (map_matrix,solution):
 def main():
     #Parameters
     #rd.seed()
-    gen_length = 1000  #number of parents in a generation
+    gen_length = 5000  #number of parents in a generation
     gen_nbr = 1000 #number of generations
     budget = 50
     elite_portion = 0.3  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.05  #rate of mutation
     max_iter = 10  #maximum number of tries to find a field that fits the budget
     #Promethee parameters
-    weights = (0.3,0.2,0.9) #weights of the criteria (production,habitation,compacity)
-    preference = ((10,50),(5,15),(10,200)) #preference of the criteria (min,max) (production,habitation,compacity)
+    weights = (0.4,0.3,0.3) #weights of the criteria (production,habitation,compacity)
+    preference = ((4,40),(3,10),(1,5)) #preference of the criteria (min,max) (production,habitation,compacity)
     #Read the data
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
     production_matrix = get_matrix('donnes_V2\Production_map.txt')
     map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
     habitation_list = get_list(map_matrix,'C')
-    free_fields = get_list(map_matrix,' ')
-    distance_matrix = [[-1 for i in range(len(map_matrix))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
+    free_fields = get_free_fields(map_matrix)
+    distance_matrix = [[-1 for i in range(len(map_matrix[j]))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
     #Init gen and score_list
     gen = generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter)
     score_list = calculate_gen_score(gen,habitation_list,production_matrix,distance_matrix)
@@ -415,7 +461,7 @@ def main():
     #Main Loop
     for i in range(gen_nbr):
         #Genrate the new generation and calculate the score of the new generation
-        new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields)
+        new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights)
         new_score_list = calculate_gen_score(new_gen,habitation_list,production_matrix,distance_matrix)
         #Plot
         pareto_list = update_pareto(pareto_list,new_score_list,new_gen)
@@ -424,25 +470,26 @@ def main():
         print("Generation",i+1,"/",gen_nbr)
     solutions,coordinates = zip(*pareto_list)
     #Promethee
-    promethee_list = create_promethee_list(pareto_list,coordinates,weights,preference)
-    promethee_score_list = calculate_promethee_score(promethee_list)
+    promethee_score_list = calculate_promethee_score(coordinates,weights,preference)
+    print(promethee_score_list)
     x,y,z = zip(*coordinates)
     ax.scatter(x,y,z)
     ax.set_xlabel('Production')
     ax.set_ylabel('Habitation')
     ax.set_zlabel('Compacity')
-    ax.set_zlim(0,1000)
+    #ax.set_zlim(0,20)
     prod,hab,comp = score_lists(coordinates)
     print("Best production score:",prod[0][1][0])
     print("Best habitation score:",hab[0][1][1])
     print("Best compacity score:",comp[0][1][2])
     print(test_pareto(pareto_list))
-    plt.show()
+    #plt.show()
     #Show Map 
-    best_solution = pareto_list[promethee_score_list[0][0]] # (index,score)
-    print("PHC",best_solution[1])
-    print("budget",get_budget(best_solution[0],cost_matrix))
-    show_map(map_matrix,best_solution)
+    best_solution = solutions[promethee_score_list[0][0]]
+    best_solution_score = coordinates[promethee_score_list[0][0]]
+    print("PHC",best_solution_score)
+    print("budget",get_budget(best_solution,cost_matrix))
+    show_map(map_matrix,best_solution,best_solution_score)
 if __name__ == '__main__':
     start = time.time()
     main()
