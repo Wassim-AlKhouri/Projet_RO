@@ -88,6 +88,17 @@ def search_for_field2(parent, budget, cost_matrix, max_iter, child, child_budget
     return child_budget
 
 
+def get_score_lists_index(element,score_list):
+    """
+    Return the index of the element in the score_list
+    method made for the production/habitation/compact score lists
+    """
+    for i in range(len(score_list)):
+        if score_list[i][0] == element:
+            return i
+    return None
+
+
 ######################################## DATA ########################################################################################################################
 
 
@@ -343,10 +354,13 @@ def calculate_fitness(score,weights):
 def calculate_fitness(solution_index,weights,production_score_list,habitation_score_list,compacity_score_list):
     """Calculate the fitness of a parent, returns a float"""
     # Find the index of the element where the first element of the tuple is equal to x
-    matching_indices_prod = [index for index,value  in enumerate(production_score_list) if value[0] == solution_index]
-    matching_indices_hab = [index for index,value  in enumerate(habitation_score_list) if value[0] == solution_index]
-    matching_indices_comp = [index for index,value  in enumerate(compacity_score_list) if value[0] == solution_index]
-    fitness = (matching_indices_prod[0]*weights[0])  + (matching_indices_comp[0]*weights[2]) + (matching_indices_hab[0]*weights[1]) 
+    #matching_indices_prod = [index for index,value  in enumerate(production_score_list) if value[0] == solution_index]
+    #matching_indices_hab = [index for index,value  in enumerate(habitation_score_list) if value[0] == solution_index]
+    #matching_indices_comp = [index for index,value  in enumerate(compacity_score_list) if value[0] == solution_index]
+    prod_index = get_score_lists_index(solution_index,production_score_list)
+    hab_index = get_score_lists_index(solution_index,habitation_score_list)
+    comp_index = get_score_lists_index(solution_index,compacity_score_list)
+    fitness = (prod_index*weights[0])  + (hab_index*weights[2]) + (comp_index*weights[1]) 
     return fitness
 
 
@@ -474,15 +488,15 @@ def show_map (map_matrix,solution,scores):
 def main():
     #Parameters
     #rd.seed()
-    gen_length = 1000  #number of parents in a generation
-    gen_nbr = 100 #number of generations
+    gen_length = 1500  #number of parents in a generation
+    gen_nbr = 300 #number of generations
     budget = 50
-    elite_portion = 0.3  #portion of the best parents that will be kept in the next generation
-    mutate_rate = 0.05  #rate of mutation
+    elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
+    mutate_rate = 0.1  #rate of mutation
     max_iter = 10  #maximum number of tries to find a field that fits the budget
     #Promethee parameters
     weights = (1,1,2) #weights of the criteria (production,habitation,compacity)
-    preference = ((4,40),(3,10),(1,5)) #preference of the criteria (min,max) (production,habitation,compacity)
+    preference = ((5,40),(5,50),(1,50)) #preference of the criteria (min,max) (production,habitation,compacity)
     #Read the data
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
     production_matrix = get_matrix('donnes_V2\Production_map.txt')
@@ -519,9 +533,9 @@ def main():
     #ax.set_zlim(0,150)
     #ax.plot_surface(x,y,z) 
     prod,hab,comp = score_lists(coordinates)
-    print("Best production score:",prod[0][1][0])
-    print("Best habitation score:",hab[0][1][1])
-    print("Best compacity score:",comp[0][1][2])
+    print("Best production score:",prod[-1][1][0])
+    print("Best habitation score:",hab[-1][1][1])
+    print("Best compacity score:",comp[-1][1][2])
     print(test_pareto(pareto_list))
     #Show Map 
     best_solution = solutions[promethee_score_list[0][0]]
