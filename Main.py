@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import time
+from matplotlib.cm import ScalarMappable
+from scipy.interpolate import griddata
 
 
 ######################################## BASIC FUNCTIONS ########################################################################################################################
@@ -253,7 +255,7 @@ def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_ma
     for i in range(len(old_gen)):
         fitness_list.append((i,calculate_fitness(i,weights,production_score_list,average_distance_list,compacity_score_list)))
     fitness_list.sort(key=lambda x: x[1],reverse=True)
-    print("best fitness :" , fitness_list[0][1])
+    #print("best fitness :" , fitness_list[0][1])
     for i in range(elite_length):
         new_gen.append(old_gen[fitness_list[i][0]])
     #Crossover
@@ -360,7 +362,8 @@ def calculate_fitness(solution_index,weights,production_score_list,habitation_sc
     prod_index = get_score_lists_index(solution_index,production_score_list)
     hab_index = get_score_lists_index(solution_index,habitation_score_list)
     comp_index = get_score_lists_index(solution_index,compacity_score_list)
-    fitness = (prod_index*weights[0])  + (hab_index*weights[2]) + (comp_index*weights[1]) 
+    #fitness = (prod_index*weights[0])  + (hab_index*weights[2]) + (comp_index*weights[1]) 
+    fitness = prod_index + hab_index + comp_index
     return fitness
 
 
@@ -488,14 +491,14 @@ def show_map (map_matrix,solution,scores):
 def main():
     #Parameters
     #rd.seed()
-    gen_length = 1500  #number of parents in a generation
-    gen_nbr = 300 #number of generations
-    budget = 50
+    gen_length = 3000  #number of parents in a generation
+    gen_nbr = 1000 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
-    mutate_rate = 0.1  #rate of mutation
+    mutate_rate = 0.5  #rate of mutation
     max_iter = 10  #maximum number of tries to find a field that fits the budget
+    budget = 50
     #Promethee parameters
-    weights = (1,1,2) #weights of the criteria (production,habitation,compacity)
+    weights = (0.3,0.2,0.6) #weights of the criteria (production,habitation,compacity)
     preference = ((5,40),(5,50),(1,50)) #preference of the criteria (min,max) (production,habitation,compacity)
     #Read the data
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
@@ -509,7 +512,8 @@ def main():
     score_list = calculate_gen_score(gen,habitation_list,production_matrix,distance_matrix)
     #Init plot
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(121, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
+    ax2 = fig.add_subplot(122, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
     #Init pareto
     pareto_list = init_pareto(score_list,gen) #list of pareto solutions = (parent,score)
     #Main Loop
@@ -526,7 +530,20 @@ def main():
     #Promethee
     promethee_score_list = calculate_promethee_score(coordinates,weights,preference)
     x,y,z = zip(*coordinates)
-    ax.scatter(x,y,z)
+    #z_filtered = [val if val < 100 else np.nan for val in z]
+    #cmap = plt.cm.get_cmap('jet')
+    cmap = plt.colormaps.get_cmap('jet')
+    norm = plt.Normalize(vmin=min(z), vmax=max(z))
+    sm = ScalarMappable(cmap=cmap, norm=norm)
+    ax.scatter(x, y, z, c=sm.to_rgba(z), marker='o')
+    #interpolation
+    xi = np.linspace(min(x), max(x), 100)
+    yi = np.linspace(min(y), max(y), 100)
+    xi, yi = np.meshgrid(xi, yi)
+    zi = griddata((x, y), z, (xi, yi), method='cubic')
+    zi = np.clip(zi, a_min=0, a_max=None)
+    ax2.plot_surface(xi, yi, zi)
+    #ax.scatter(x,y,z_filtered)
     ax.set_xlabel('Production')
     ax.set_ylabel('Habitation')
     ax.set_zlabel('Compacity')
