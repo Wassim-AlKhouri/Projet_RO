@@ -46,7 +46,7 @@ def get_random_from_small_list(list1,list2):
     """
     found = False
     found_field = None
-    list1_copy = list1[:]
+    list1_copy = list1[:] 
     rd.shuffle(list1_copy)
     for field in list1_copy:
         if field not in list2:
@@ -62,7 +62,7 @@ def search_for_field(budget, cost_matrix, max_iter, free_fields, child, child_bu
     Searches for max_iter times.
     """
     child.remove(child[-1])
-    for i in range(max_iter):
+    for i in range(max_iter): #a set number of iteration to be able to fill the budget as closely as possible
         field = get_random_from_list(free_fields,child)
         cost = int(cost_matrix[field[0]][field[1]])
         if(child_budget +cost <= budget) :
@@ -132,11 +132,11 @@ def generate_parent(free_fields,budget,cost_matrix,max_iter):
     parent = []
     parent_budget = 0
     while (parent_budget < budget):
-        parent.append(get_random_from_list(free_fields,parent))
+        parent.append(get_random_from_list(free_fields,parent)) #random field added that is not yet in parent
         cost = int(cost_matrix[parent[-1][0]][parent[-1][1]])
         if(parent_budget +cost > budget):
             parent.remove(parent[-1])
-            for i in range(max_iter):
+            for i in range(max_iter): #a set number of iteration to be able to fill the budget as closely as possible
                 field = get_random_from_list(free_fields,parent)
                 cost = int(cost_matrix[field[0]][field[1]])
                 if(parent_budget +cost <= budget):
@@ -145,7 +145,8 @@ def generate_parent(free_fields,budget,cost_matrix,max_iter):
                     break
             break
         else:
-            parent_budget += cost  
+            parent_budget += cost
+    # TODO: à enlever ? :   
     if(parent_budget > budget):
         print("Budget parent")
     return parent
@@ -163,7 +164,7 @@ def generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter):
 def mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget):
     """Mutate a child"""
     field_to_mutate = rd.choice(child)
-    child_budget -= int(cost_matrix[field_to_mutate[0]][field_to_mutate[1]])
+    child_budget -= int(cost_matrix[field_to_mutate[0]][field_to_mutate[1]]) #removes the cost of mutated field from the budget
     child.remove(field_to_mutate)
     child.append(get_random_from_list(free_fields,child))
     cost = int(cost_matrix[child[-1][0]][child[-1][1]])
@@ -171,6 +172,7 @@ def mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget):
         child_budget = search_for_field(budget, cost_matrix, max_iter, free_fields, child, child_budget)
     else :
         child_budget += cost
+    #TODO: à enlever ? : 
     if(child_budget > budget):
         print("Budget mutate")
     return child_budget
@@ -204,44 +206,10 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_
             child_budget = mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget)
             if(rd.random() < mutate_rate):
                 child_budget = mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget)
+    #TODO: à enlever ? : 
     if(child_budget > budget):
         print("Budget child")
     return child
-"""
-à retravailler sacha : 
-def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights):
-    
-    new_gen = []
-    n=len(old_gen)
-    elite_length = int(n*elite_portion)
-    pareto_list = init_pareto(score_list,old_gen)
-    #indixes_list,remaining_individuals = zip(*enumerate(old_gen))
-    #indixes_list,remaining_individuals = list(indixes_list), list(remaining_individuals)
-    remaining_individuals = old_gen.copy()
-    score_list_copy = score_list.copy()
-    frontiers=[]
-    counter = 0
-    while len(remaining_individuals)>0:
-        solutions,scores = zip(*init_pareto(score_list_copy,remaining_individuals))
-        #frontier = [i for i, (_, _) in enumerate(pareto_list)] # (indice_list_pareto,(parent,score))
-        frontiers.append(solutions)
-        for solution in solutions:
-            index = remaining_individuals.index(solution)
-            remaining_individuals.pop(index)
-            score_list_copy.pop(index)
-        counter += 1
-    # Elitism
-    while(len(new_gen) < elite_length):
-        for frontier in frontiers:
-            for solution in frontier:
-                new_gen.append(solution)
-    # Crossover within each Pareto frontier
-    while len(new_gen) < len(old_gen):
-        parents = rd.sample(new_gen[:elite_length], 2)
-        child = generate_child(parents[0], parents[1], budget, cost_matrix, max_iter, mutate_rate, free_fields)
-        new_gen.append(child)
-    return new_gen
-"""
 
 
 def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights):
