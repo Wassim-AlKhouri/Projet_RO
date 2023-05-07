@@ -482,7 +482,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score):
     ax2 = fig.add_subplot(122, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
     
     ### PARETO GRAPH ###
-    ax.scatter(x, y, z, c=z)
+    ax.scatter(x, y, z, c=z,alpha=1)
     ax.set_title('Pareto front')
 
     ### SURFACE GRAPH ###
@@ -502,7 +502,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score):
 
 def main():
     ### Parameters ###
-    rd.seed(1)
+    #rd.seed()
     gen_length = 1000  #number of parents in a generation
     gen_nbr = 500 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
