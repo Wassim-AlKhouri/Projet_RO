@@ -3,9 +3,9 @@ import random as rd
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
-import time
 from matplotlib.cm import ScalarMappable
 from scipy.interpolate import griddata
+from tqdm import tqdm
 
 
 ######################################## BASIC FUNCTIONS ########################################################################################################################
@@ -122,6 +122,15 @@ def get_list(map_matrix, char):
             if map_matrix[i][j] == char:
                 habitation_list.append((i,j))
     return habitation_list
+
+
+def read_data():
+    cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
+    production_matrix = get_matrix('donnes_V2\Production_map.txt')
+    map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
+    habitation_list = get_list(map_matrix,'C')
+    free_fields = get_list(map_matrix,' ')
+    return cost_matrix,production_matrix,map_matrix,habitation_list,free_fields
 
 
 ######################################## GEN ########################################################################################################################
@@ -252,7 +261,7 @@ def average_distance(parent,habitation_list,distance_matrix):
             average_field_distance = total_field_distance / len(habitation_list)
             distance_matrix[field[0]][field[1]] = average_field_distance   
         total_distance += average_field_distance
-    average_distance = total_distance / len(parent)
+    average_distance = total_distance / len(parent) # average distance between all the fields and all the habitations
     return average_distance
 
 
@@ -265,7 +274,7 @@ def production_score(parent,production_matrix):
 
 
 def compacity_score(parent):
-    """Calculate the compacity score of a parent"""
+    """Calculate the compacity score of a parent whitch is the surface of the parent divided by the number of adjacent fields"""
     L = ( max(parent)[0] - min(parent)[0] ) + 1
     l = ( max(parent,key=lambda x:x[1])[1] - min(parent,key=lambda x:x[1])[1] ) + 1
     surface = L*l
@@ -284,7 +293,6 @@ def compacity_score(parent):
 
 def calculate_score(parent,habitation_list,production_matrix,distance_matrix):
     """Calculate the score of a parent, returns a tuple (production,habitation,compacity)"""
-    #Init
     prod_score = production_score(parent,production_matrix)
     habitation_average_distance = average_distance(parent,habitation_list,distance_matrix)
     comp_score = compacity_score(parent)
@@ -313,26 +321,38 @@ def score_lists(score_list):
     compacity_score_list = sorted(index_score_list,key=lambda x:x[1][2],reverse=True)
     return production_score_list,habitation_score_list,compacity_score_list
 
-"""
-def calculate_fitness(score,weights):
-    Calculate the fitness of a parent, returns a float
-    #fitness = (production-habitation) / compacity but always positive
-    fitness = (score[0]*weights[0])  / ( (score[2]*(1 - weights[2])) + (score[1]*(1 -weights[1])) )
-    return fitness
-"""
 
 def calculate_fitness(solution_index,weights,production_score_list,habitation_score_list,compacity_score_list):
     """Calculate the fitness of a parent, returns a float"""
-    # Find the index of the element where the first element of the tuple is equal to x
-    #matching_indices_prod = [index for index,value  in enumerate(production_score_list) if value[0] == solution_index]
-    #matching_indices_hab = [index for index,value  in enumerate(habitation_score_list) if value[0] == solution_index]
-    #matching_indices_comp = [index for index,value  in enumerate(compacity_score_list) if value[0] == solution_index]
     prod_index = get_score_lists_index(solution_index,production_score_list)
     hab_index = get_score_lists_index(solution_index,habitation_score_list)
     comp_index = get_score_lists_index(solution_index,compacity_score_list)
-    #fitness = (prod_index*weights[0])  + (hab_index*weights[2]) + (comp_index*weights[1]) 
-    fitness = prod_index + hab_index + comp_index
+    fitness = prod_index + hab_index + comp_index #fitness is the sum of the indexes of the solution in the three score lists
     return fitness
+
+
+######################################## ALGORITHM ########################################################################################################################
+
+
+def genetic_algorithm(gen_length, gen_nbr, elite_portion, mutate_rate, max_iter, budget, weights, cost_matrix, production_matrix, habitation_list, free_fields, distance_matrix):
+    """Main function of the genetic algorithm"""
+    ### INIT ###
+    gen = generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter)
+    score_list = calculate_gen_score(gen,habitation_list,production_matrix,distance_matrix)
+    pareto_list = init_pareto(score_list,gen) #list of pareto solutions = (parent,score)
+
+    ### LOOP ###
+    for _ in tqdm(range(gen_nbr)):
+        #Genrate the new generation and calculate the score of the new generation
+        new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights)
+        new_score_list = calculate_gen_score(new_gen,habitation_list,production_matrix,distance_matrix)
+        #Update the pareto list
+        pareto_list = update_pareto(pareto_list,new_score_list,new_gen)
+        #Update the current generation and score list
+        gen = new_gen[:]
+        score_list = new_score_list[:]
+    
+    return pareto_list
 
 
 ######################################## PARETO ########################################################################################################################
@@ -385,11 +405,12 @@ def test_pareto(pareto_list):
 
 ######################################## PROMETHEE ########################################################################################################################
 
+
 def promethee(score1,score2,weights,preference):
     """Calculate the promethee score of solution 1 compared to solution 2"""
     score = 0
-    for i in range(len(score1)): #Criteria to maximize (production)
-        if(i == 0): 
+    for i in range(len(score1)): 
+        if(i == 0): #Criteria to maximize (production)
             difference = score1[i] - score2[i]
         else : #Criteria to minimize (habitation and compacity)
             difference = score2[i] - score1[i]
@@ -428,7 +449,7 @@ def calculate_promethee_score(score_list,weights,preference):
     return sorted(promethee_score_list,key=lambda x:x[1],reverse=True)
 
 
-######################################## MAP OUTPUT ########################################################################################################################
+######################################## PLOT ########################################################################################################################
 
 
 def show_map (map_matrix,solution,scores):
@@ -449,18 +470,41 @@ def show_map (map_matrix,solution,scores):
     ax.text(0.5, -0.1, f"La production de cette exploitation agricole est de {scores[0]}.",
             transform=ax.transAxes,
             ha='center', va='center')
-    # Show the plot
     plt.show()
+
+
+def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score):
+    """Plot the graphs"""
+    ### INTI ###
+    x,y,z = zip(*coordinates)
+    fig = plt.figure()
+    ax = fig.add_subplot(121, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
+    ax2 = fig.add_subplot(122, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
+    
+    ### PARETO GRAPH ###
+    ax.scatter(x, y, z)
+    ax.set_title('Pareto front')
+
+    ### SURFACE GRAPH ###
+    xi = np.linspace(min(x), max(x), 100)
+    yi = np.linspace(min(y), max(y), 100)
+    xi, yi = np.meshgrid(xi, yi)
+    zi = griddata((x, y), z, (xi, yi), method='cubic')
+    zi = np.clip(zi, a_min=0, a_max=None)
+    ax2.plot_surface(xi, yi, zi)
+    ax2.set_title('Surface')
+
+    show_map(map_matrix,best_solution,best_solution_score)
 
 
 ######################################## MAIN ########################################################################################################################
 
 
 def main():
-    #Parameters
-    #rd.seed()
-    gen_length = 3000  #number of parents in a generation
-    gen_nbr = 1000 #number of generations
+    ### Parameters ###
+    rd.seed(1)
+    gen_length = 1000  #number of parents in a generation
+    gen_nbr = 500 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
     max_iter = 10  #maximum number of tries to find a field that fits the budget
@@ -468,68 +512,35 @@ def main():
     #Promethee parameters
     weights = (0.3,0.2,0.6) #weights of the criteria (production,habitation,compacity)
     preference = ((5,40),(5,50),(1,50)) #preference of the criteria (min,max) (production,habitation,compacity)
-    #Read the data
-    cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
-    production_matrix = get_matrix('donnes_V2\Production_map.txt')
-    map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
-    habitation_list = get_list(map_matrix,'C')
-    free_fields = get_list(map_matrix,' ')
+
+    ### Data ###
+    cost_matrix, production_matrix, map_matrix, habitation_list, free_fields = read_data()
     distance_matrix = [[-1 for i in range(len(map_matrix[j]))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
-    #Init gen and score_list
-    gen = generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter)
-    score_list = calculate_gen_score(gen,habitation_list,production_matrix,distance_matrix)
-    #Init plot
-    fig = plt.figure()
-    ax = fig.add_subplot(121, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
-    ax2 = fig.add_subplot(122, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
-    #Init pareto
-    pareto_list = init_pareto(score_list,gen) #list of pareto solutions = (parent,score)
-    #Main Loop
-    for i in range(gen_nbr):
-        #Genrate the new generation and calculate the score of the new generation
-        new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights)
-        new_score_list = calculate_gen_score(new_gen,habitation_list,production_matrix,distance_matrix)
-        #Plot
-        pareto_list = update_pareto(pareto_list,new_score_list,new_gen)
-        gen = new_gen[:]
-        score_list = new_score_list[:]
-        print("Generation",i+1,"/",gen_nbr)
-    solutions,coordinates = zip(*pareto_list)
-    #Promethee
-    promethee_score_list = calculate_promethee_score(coordinates,weights,preference)
-    x,y,z = zip(*coordinates)
-    #z_filtered = [val if val < 100 else np.nan for val in z]
-    #cmap = plt.cm.get_cmap('jet')
-    cmap = plt.colormaps.get_cmap('jet')
-    norm = plt.Normalize(vmin=min(z), vmax=max(z))
-    sm = ScalarMappable(cmap=cmap, norm=norm)
-    ax.scatter(x, y, z, c=sm.to_rgba(z), marker='o')
-    #interpolation
-    xi = np.linspace(min(x), max(x), 100)
-    yi = np.linspace(min(y), max(y), 100)
-    xi, yi = np.meshgrid(xi, yi)
-    zi = griddata((x, y), z, (xi, yi), method='cubic')
-    zi = np.clip(zi, a_min=0, a_max=None)
-    ax2.plot_surface(xi, yi, zi)
-    #ax.scatter(x,y,z_filtered)
-    ax.set_xlabel('Production')
-    ax.set_ylabel('Habitation')
-    ax.set_zlabel('Compacity')
-    #ax.set_zlim(0,150)
-    #ax.plot_surface(x,y,z) 
-    prod,hab,comp = score_lists(coordinates)
+
+    ### Genetic Algorithm ###
+    pareto_list = genetic_algorithm(gen_length, gen_nbr, elite_portion, mutate_rate, max_iter, budget, weights, cost_matrix, production_matrix, habitation_list, free_fields, distance_matrix)
+    solutions,scores = zip(*pareto_list)
+
+    ### Promethee ###
+    promethee_score_list = calculate_promethee_score(scores,weights,preference)
+    best_solution = solutions[promethee_score_list[0][0]]
+    best_solution_score = scores[promethee_score_list[0][0]]
+
+    ### Plot ###
+    plot_graphs(scores,map_matrix,best_solution,best_solution_score)
+
+
+    # A enlever
+    prod,hab,comp = score_lists(scores)
     print("Best production score:",prod[-1][1][0])
     print("Best habitation score:",hab[-1][1][1])
     print("Best compacity score:",comp[-1][1][2])
     print(test_pareto(pareto_list))
     #Show Map 
-    best_solution = solutions[promethee_score_list[0][0]]
-    best_solution_score = coordinates[promethee_score_list[0][0]]
     print("PHC",best_solution_score)
     print("budget",get_budget(best_solution,cost_matrix))
-    show_map(map_matrix,best_solution,best_solution_score)
+
+
+
 if __name__ == '__main__':
-    start = time.time()
     main()
-    end = time.time()
-    print("Time:",end-start)
