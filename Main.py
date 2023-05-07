@@ -482,7 +482,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score):
     ax2 = fig.add_subplot(122, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
     
     ### PARETO GRAPH ###
-    ax.scatter(x, y, z)
+    ax.scatter(x, y, z, c=z)
     ax.set_title('Pareto front')
 
     ### SURFACE GRAPH ###
@@ -536,7 +536,7 @@ def main():
     print("Best habitation score:",hab[-1][1][1])
     print("Best compacity score:",comp[-1][1][2])
     print(test_pareto(pareto_list))
-    #Show Map 
+     
     print("PHC",best_solution_score)
     print("budget",get_budget(best_solution,cost_matrix))
 
