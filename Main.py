@@ -125,8 +125,8 @@ def get_list(map_matrix, char):
 
 
 def read_data():
-    cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
-    production_matrix = get_matrix('donnes_V2\Production_map.txt')
+    cost_matrix = get_matrix('donnes_V2\Cost_map_test.txt')
+    production_matrix = get_matrix('donnes_V2\Production_map_test.txt')
     map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
     habitation_list = get_list(map_matrix,'C')
     free_fields = get_list(map_matrix,' ')
@@ -452,7 +452,7 @@ def calculate_promethee_score(score_list,weights,preference):
 ######################################## PLOT ########################################################################################################################
 
 
-def show_map (map_matrix,solution,scores):
+def show_map (map_matrix,solution,scores,num):
     """Show the map"""
     # Channge map_matrix to show the solution
     cmap = plt.get_cmap('winter')
@@ -467,18 +467,22 @@ def show_map (map_matrix,solution,scores):
     ax.set_xticks([])
     ax.set_yticks([])
     # ajoute un texte dans lequel on peut indiquer le score de production et le coût par exemple : 
-    ax.text(0.5, -0.1, f"La production de cette exploitation agricole est de {scores[0]}.",
+    ax.text(0.5, -0.2, f"La production est de {scores[0]},\n la distance aux habitations est {scores[1]:.2f} et \n le score de compacité {scores[2]:.2f}.{num}",
             transform=ax.transAxes,
             ha='center', va='center')
-    plt.show()
 
 
-def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score):
+def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,num):
     """Plot the graphs"""
     ### INTI ###
-    x,y,z = zip(*coordinates)
+    filtered_coordinates = []
+    for coordinate in coordinates:
+        if(coordinate[2] < 150):
+            filtered_coordinates.append(coordinate)
+
+    x,y,z = zip(*filtered_coordinates)
     fig = plt.figure()
-    ax = fig.add_subplot(121, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
+    ax = fig.add_subplot(121, projection='3d',xlabel=f'Production{num}',ylabel='Habitation',zlabel='Compacity')
     ax2 = fig.add_subplot(122, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
     
     ### PARETO GRAPH ###
@@ -494,7 +498,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score):
     ax2.plot_surface(xi, yi, zi)
     ax2.set_title('Surface')
 
-    show_map(map_matrix,best_solution,best_solution_score)
+    show_map(map_matrix,best_solution,best_solution_score,num)
 
 
 ######################################## MAIN ########################################################################################################################
@@ -503,7 +507,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score):
 def main():
     ### Parameters ###
     #rd.seed()
-    gen_length = 1000  #number of parents in a generation
+    gen_length = 500  #number of parents in a generation
     gen_nbr = 500 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
@@ -511,7 +515,7 @@ def main():
     budget = 50
     #Promethee parameters
     weights = (0.3,0.2,0.6) #weights of the criteria (production,habitation,compacity)
-    preference = ((5,40),(5,50),(1,50)) #preference of the criteria (min,max) (production,habitation,compacity)
+    preference = ((2,15),(0.5,6),(0.1,10)) #preference of the criteria (min,max) (production,habitation,compacity)
 
     ### Data ###
     cost_matrix, production_matrix, map_matrix, habitation_list, free_fields = read_data()
@@ -526,8 +530,32 @@ def main():
     best_solution = solutions[promethee_score_list[0][0]]
     best_solution_score = scores[promethee_score_list[0][0]]
 
+    ### SENSITIVE ANALYSIS ###
+    """
+    weights2 = (1.5,0.1,0.1)
+    promethee_score_list2 = calculate_promethee_score(scores,weights2,preference)
+    best_solution2 = solutions[promethee_score_list2[0][0]]
+    best_solution_score2 = scores[promethee_score_list2[0][0]]
+    weights3 = (0.1,1.5,0.1)
+    promethee_score_list3 = calculate_promethee_score(scores,weights3,preference)
+    best_solution3 = solutions[promethee_score_list3[0][0]]
+    best_solution_score3 = scores[promethee_score_list3[0][0]]
+    weights4 = (0.1,0.1,1.5)
+    promethee_score_list4 = calculate_promethee_score(scores,weights4,preference)
+    best_solution4 = solutions[promethee_score_list4[0][0]]
+    best_solution_score4 = scores[promethee_score_list4[0][0]]
+    weights5 = (0.6,0.2,0.2)
+    promethee_score_list5 = calculate_promethee_score(scores,weights5,preference)
+    best_solution5 = solutions[promethee_score_list5[0][0]]
+    best_solution_score5 = scores[promethee_score_list5[0][0]]
+    """
     ### Plot ###
-    plot_graphs(scores,map_matrix,best_solution,best_solution_score)
+    plot_graphs(scores,map_matrix,best_solution,best_solution_score,1)
+    #plot_graphs(scores,map_matrix,best_solution2,best_solution_score2,2)
+    #plot_graphs(scores,map_matrix,best_solution3,best_solution_score3,3)
+    #plot_graphs(scores,map_matrix,best_solution4,best_solution_score4,4)
+    #plot_graphs(scores,map_matrix,best_solution5,best_solution_score5,5)
+    plt.show()
 
 
     # A enlever
