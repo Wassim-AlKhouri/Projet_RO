@@ -29,7 +29,6 @@ def get_random_from_list(list1,list2):
 
 def budget_check(child,free_fields,cost_matrix,child_budget,budget):
     """Check if the budget is respected after a mutation"""
-    #TODO : corriger la fonction car budget trop bas par fois
     if (child_budget > budget):
         child_budget -= int(cost_matrix[child[-1][0]][child[-1][1]])
         child.remove(child[-1])
@@ -155,9 +154,6 @@ def generate_parent(free_fields,budget,cost_matrix,max_iter):
             break
         else:
             parent_budget += cost
-    # TODO: à enlever ? :   
-    if(parent_budget > budget):
-        print("Budget parent")
     return parent
 
 
@@ -215,9 +211,6 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_
             child_budget = mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget)
             if(rd.random() < mutate_rate):
                 child_budget = mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget)
-    #TODO: à enlever ? : 
-    if(child_budget > budget):
-        print("Budget child")
     return child
 
 
