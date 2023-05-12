@@ -6,6 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.cm import ScalarMappable
 from scipy.interpolate import griddata
 from tqdm import tqdm
+import math
 
 
 ######################################## BASIC FUNCTIONS ########################################################################################################################
@@ -124,8 +125,8 @@ def get_list(map_matrix, char):
 
 
 def read_data():
-    cost_matrix = get_matrix('donnes_V2\Cost_map_test.txt')
-    production_matrix = get_matrix('donnes_V2\Production_map_test.txt')
+    cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
+    production_matrix = get_matrix('donnes_V2\Production_map.txt')
     map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
     habitation_list = get_list(map_matrix,'C')
     free_fields = get_list(map_matrix,' ')
@@ -250,7 +251,7 @@ def average_distance(parent,habitation_list,distance_matrix):
         else:
             total_field_distance = 0
             for j in range(len(habitation_list)):
-                total_field_distance += abs(field[0] - habitation_list[j][0]) + abs(field[1] - habitation_list[j][1])
+                total_field_distance += math.sqrt((field[0] - habitation_list[j][0])**2 + (field[1] - habitation_list[j][1])**2)
             average_field_distance = total_field_distance / len(habitation_list)
             distance_matrix[field[0]][field[1]] = average_field_distance   
         total_distance += average_field_distance
@@ -499,9 +500,9 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,num):
 
 def main():
     ### Parameters ###
-    #rd.seed()
-    gen_length = 500  #number of parents in a generation
-    gen_nbr = 500 #number of generations
+    rd.seed()
+    gen_length = 2000  #number of parents in a generation
+    gen_nbr = 1500 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
     max_iter = 10  #maximum number of tries to find a field that fits the budget
