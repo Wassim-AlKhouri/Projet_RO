@@ -2,8 +2,6 @@ import pandas as pd
 import random as rd
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.cm import ScalarMappable
 from scipy.interpolate import griddata
 from tqdm import tqdm
 import math
@@ -62,7 +60,7 @@ def search_for_field(budget, cost_matrix, max_iter, free_fields, child, child_bu
     Searches for max_iter times.
     """
     child.remove(child[-1])
-    for i in range(max_iter): #a set number of iteration to be able to fill the budget as closely as possible
+    for _ in range(max_iter): #a set number of iteration to be able to fill the budget as closely as possible
         field = get_random_from_list(free_fields,child)
         cost = int(cost_matrix[field[0]][field[1]])
         if(child_budget +cost <= budget) :
@@ -79,7 +77,7 @@ def search_for_field2(parent, budget, cost_matrix, max_iter, child, child_budget
     (This method is used for small parent list)
     """
     child.remove(child[-1])
-    for i in range(max_iter):
+    for _ in range(max_iter):
         found,field = get_random_from_small_list(parent,child)
         if(not found) : break
         cost = int(cost_matrix[field[0]][field[1]])
@@ -161,7 +159,7 @@ def generate_parent(free_fields,budget,cost_matrix,max_iter):
 def generate_parents(free_fields,budget,cost_matrix,gen_length,max_iter):
     """Generate a list of parents"""
     parents = []
-    for i in range(gen_length):
+    for _ in range(gen_length):
         parent = generate_parent(free_fields,budget,cost_matrix,max_iter)
         parents.append(parent)
     return parents
@@ -178,24 +176,24 @@ def mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget):
         child_budget = search_for_field(budget, cost_matrix, max_iter, free_fields, child, child_budget)
     else :
         child_budget += cost
-    #TODO: à enlever ? : 
-    if(child_budget > budget):
-        print("Budget mutate")
     return child_budget
 
 
 def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_fields):
     """Generate a child from two parents"""
+    ### INIT ###
     child = []
     child_budget = 0
     parent1_budget = rd.choice(range(10,budget-10)) # Select a random budget that determines the number of fields passed by the 1st parent 
-    #First part of the child
+
+    ### First part of the child ###
     while (child_budget < parent1_budget and len(child) < len(parent1)):
         found,field =get_random_from_small_list(parent1,child) 
         if(not found) : break
         child.append(field)
         child_budget += int(cost_matrix[child[-1][0]][child[-1][1]])
-    #Second part of the child
+
+    ### Second part of the child ###
     while (child_budget < budget and len(child) < len(parent1) + len(parent2)):
         found,field = get_random_from_small_list(parent2,child)
         if(not found) : break
@@ -207,7 +205,8 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_
             break
         else:
             child_budget += cost
-    #Mutation
+
+    ### Mutation ###
         if(rd.random() < mutate_rate):
             child_budget = mutate(budget, cost_matrix, max_iter, free_fields, child, child_budget)
             if(rd.random() < mutate_rate):
@@ -218,18 +217,18 @@ def generate_child(parent1,parent2,budget,cost_matrix,max_iter,mutate_rate,free_
 def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights):
     """Generate a new generation from the old one"""
     new_gen = []
-    #production_score_list,average_distance_list,compacity_score_list = score_lists(score_list)
-    #Elitism
+
+    ### Elitism ###
     elite_length = int(len(old_gen)*elite_portion)
     fitness_list = [] #List of tuples (index,fitness)
     production_score_list,average_distance_list,compacity_score_list = score_lists(score_list)
     for i in range(len(old_gen)):
         fitness_list.append((i,calculate_fitness(i,weights,production_score_list,average_distance_list,compacity_score_list)))
     fitness_list.sort(key=lambda x: x[1],reverse=True)
-    #print("best fitness :" , fitness_list[0][1])
     for i in range(elite_length):
         new_gen.append(old_gen[fitness_list[i][0]])
-    #Crossover
+
+    ### Crossover ###
     while len(new_gen) < len(old_gen):
         nums = rd.sample(range(0,elite_length),2)
         child = generate_child(old_gen[nums[0]],old_gen[nums[1]],budget,cost_matrix,max_iter,mutate_rate,free_fields)
@@ -337,12 +336,14 @@ def genetic_algorithm(gen_length, gen_nbr, elite_portion, mutate_rate, max_iter,
 
     ### LOOP ###
     for _ in tqdm(range(gen_nbr)):
-        #Genrate the new generation and calculate the score of the new generation
+        ###Genrate the new generation and calculate the score of the new generation ###
         new_gen = generate_new_gen(gen,score_list,elite_portion,mutate_rate,budget,cost_matrix,max_iter,free_fields,weights)
         new_score_list = calculate_gen_score(new_gen,habitation_list,production_matrix,distance_matrix)
-        #Update the pareto list
+
+        ### Update the pareto list ###
         pareto_list = update_pareto(pareto_list,new_score_list,new_gen)
-        #Update the current generation and score list
+
+        ### Update the current generation and score list ###
         gen = new_gen[:]
         score_list = new_score_list[:]
     
@@ -380,7 +381,8 @@ def update_pareto(pareto_list,score_list,gen):
                     bad_solutions.append(solution)
         if(is_pareto):
             pareto_list.append((gen[i],score_list[i]))
-    #Remove bad solutions
+
+    ### Remove bad solutions ###
     for bad_solution in bad_solutions:
         pareto_list.remove(bad_solution)
     return pareto_list
@@ -446,37 +448,42 @@ def calculate_promethee_score(score_list,weights,preference):
 ######################################## PLOT ########################################################################################################################
 
 
-def show_map (map_matrix,solution,scores,num):
+def show_map (map_matrix,solution,scores,gen_length,seed,gen_nbr):
     """Show the map"""
-    # Channge map_matrix to show the solution
+    ### Channge map_matrix to show the solution ###
     cmap = plt.get_cmap('winter')
     bounds = ['C', 'R', ' ','S']
     norm = plt.Normalize(vmin=0, vmax=3)
-    # Convert the matrix to a NumPy array of chr
+
+    ### Convert the matrix to a NumPy array of chr indices ###
     indices = {c: i for i, c in enumerate(bounds)}
     data = np.array([[indices['S'] if (line, col) in solution else indices[map_matrix[line][col]] for col in range(len(map_matrix[line]))] for line in range(len(map_matrix))])
-    # Create a heatmap using Matplotlib
+
+    ### Create a heatmap using Matplotlib ###
     fig, ax = plt.subplots()
     heatmap = ax.imshow(data, cmap=cmap, norm=norm)
     ax.set_xticks([])
     ax.set_yticks([])
-    # ajoute un texte dans lequel on peut indiquer le score de production et le coût par exemple : 
-    ax.text(0.5, -0.2, f"La production est de {scores[0]},\n la distance aux habitations est {scores[1]:.2f} et \n le score de compacité {scores[2]:.2f}.{num}",
+
+    ### ajoute un texte dans lequel on peut indiquer divers informations ###
+    ax.text(0.5, -0.2, f"""La production est de {scores[0]},\nla distance aux habitations est {scores[1]:.2f} et\nle score de compacité {scores[2]:.2f}.\nAvec une population de {gen_length} et {seed} comme rd.seed.\nEn {gen_nbr} générations.""",
             transform=ax.transAxes,
             ha='center', va='center')
 
 
-def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,num):
+def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr):
     """Plot the graphs"""
     ### INTI ###
     filtered_coordinates = []
     for coordinate in coordinates:
-        if(coordinate[2] < 150):
+        if(coordinate[2] < 50):
             filtered_coordinates.append(coordinate)
-
-    x,y,z = zip(*filtered_coordinates)
+    if (len(filtered_coordinates) > 0):
+        x,y,z = zip(*filtered_coordinates)
+    else:
+        x,y,z = zip(*coordinates)
     fig = plt.figure()
-    ax = fig.add_subplot(121, projection='3d',xlabel=f'Production{num}',ylabel='Habitation',zlabel='Compacity')
+    ax = fig.add_subplot(121, projection='3d',xlabel=f'Production',ylabel='Habitation',zlabel='Compacity')
     ax2 = fig.add_subplot(122, projection='3d',xlabel='Production',ylabel='Habitation',zlabel='Compacity')
     
     ### PARETO GRAPH ###
@@ -487,12 +494,13 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,num):
     xi = np.linspace(min(x), max(x), 100)
     yi = np.linspace(min(y), max(y), 100)
     xi, yi = np.meshgrid(xi, yi)
-    zi = griddata((x, y), z, (xi, yi), method='cubic')
+    zi = griddata((x, y), z, (xi, yi), method='nearest')
     zi = np.clip(zi, a_min=0, a_max=None)
     ax2.plot_surface(xi, yi, zi)
     ax2.set_title('Surface')
 
-    show_map(map_matrix,best_solution,best_solution_score,num)
+    ### SHOW MAP ###
+    show_map(map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr)
 
 
 ######################################## MAIN ########################################################################################################################
@@ -500,20 +508,21 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,num):
 
 def main():
     ### Parameters ###
-    rd.seed()
+    seed = 2
+    rd.seed(seed)
     gen_length = 2000  #number of parents in a generation
-    gen_nbr = 1500 #number of generations
+    gen_nbr = 2000 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
-    max_iter = 10  #maximum number of tries to find a field that fits the budget
+    max_iter = 15  #maximum number of tries to find a field that fits the budget
     budget = 50
-    #Promethee parameters
-    weights = (0.3,0.2,0.6) #weights of the criteria (production,habitation,compacity)
+    # Promethee parameters #
+    weights = (0.7,0.5,0.7) #weights of the criteria (production,habitation,compacity)
     preference = ((2,15),(0.5,6),(0.1,10)) #preference of the criteria (min,max) (production,habitation,compacity)
 
     ### Data ###
     cost_matrix, production_matrix, map_matrix, habitation_list, free_fields = read_data()
-    distance_matrix = [[-1 for i in range(len(map_matrix[j]))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
+    distance_matrix = [[-1 for _ in range(len(map_matrix[j]))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
 
     ### Genetic Algorithm ###
     pareto_list = genetic_algorithm(gen_length, gen_nbr, elite_portion, mutate_rate, max_iter, budget, weights, cost_matrix, production_matrix, habitation_list, free_fields, distance_matrix)
@@ -524,31 +533,8 @@ def main():
     best_solution = solutions[promethee_score_list[0][0]]
     best_solution_score = scores[promethee_score_list[0][0]]
 
-    ### SENSITIVE ANALYSIS ###
-    """
-    weights2 = (1.5,0.1,0.1)
-    promethee_score_list2 = calculate_promethee_score(scores,weights2,preference)
-    best_solution2 = solutions[promethee_score_list2[0][0]]
-    best_solution_score2 = scores[promethee_score_list2[0][0]]
-    weights3 = (0.1,1.5,0.1)
-    promethee_score_list3 = calculate_promethee_score(scores,weights3,preference)
-    best_solution3 = solutions[promethee_score_list3[0][0]]
-    best_solution_score3 = scores[promethee_score_list3[0][0]]
-    weights4 = (0.1,0.1,1.5)
-    promethee_score_list4 = calculate_promethee_score(scores,weights4,preference)
-    best_solution4 = solutions[promethee_score_list4[0][0]]
-    best_solution_score4 = scores[promethee_score_list4[0][0]]
-    weights5 = (0.6,0.2,0.2)
-    promethee_score_list5 = calculate_promethee_score(scores,weights5,preference)
-    best_solution5 = solutions[promethee_score_list5[0][0]]
-    best_solution_score5 = scores[promethee_score_list5[0][0]]
-    """
     ### Plot ###
-    plot_graphs(scores,map_matrix,best_solution,best_solution_score,1)
-    #plot_graphs(scores,map_matrix,best_solution2,best_solution_score2,2)
-    #plot_graphs(scores,map_matrix,best_solution3,best_solution_score3,3)
-    #plot_graphs(scores,map_matrix,best_solution4,best_solution_score4,4)
-    #plot_graphs(scores,map_matrix,best_solution5,best_solution_score5,5)
+    plot_graphs(scores,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr)
     plt.show()
 
 
@@ -561,7 +547,6 @@ def main():
      
     print("PHC",best_solution_score)
     print("budget",get_budget(best_solution,cost_matrix))
-
 
 
 if __name__ == '__main__':
