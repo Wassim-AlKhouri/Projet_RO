@@ -448,7 +448,7 @@ def calculate_promethee_score(score_list,weights,preference):
 ######################################## PLOT ########################################################################################################################
 
 
-def show_map (map_matrix,solution,scores,gen_length,seed,gen_nbr):
+def show_map (map_matrix,solution,scores,gen_length,seed,gen_nbr,weights):
     """Show the map"""
     ### Channge map_matrix to show the solution ###
     cmap = plt.get_cmap('winter')
@@ -464,14 +464,19 @@ def show_map (map_matrix,solution,scores,gen_length,seed,gen_nbr):
     heatmap = ax.imshow(data, cmap=cmap, norm=norm)
     ax.set_xticks([])
     ax.set_yticks([])
+    ax.set_title('Map')
 
     ### ajoute un texte dans lequel on peut indiquer divers informations ###
-    ax.text(0.5, -0.2, f"""La production est de {scores[0]},\nla distance aux habitations est {scores[1]:.2f} et\nle score de compacité {scores[2]:.2f}.\nAvec une population de {gen_length} et {seed} comme rd.seed.\nEn {gen_nbr} générations.""",
-            transform=ax.transAxes,
-            ha='center', va='center')
+    text =  f"""La production est de {scores[0]},
+    la distance aux habitations est {scores[1]:.2f} et
+    le score de compacité {scores[2]:.2f}.
+    Avec une population de {gen_length} et {seed} comme rd.seed.
+    En {gen_nbr} générations.
+    Avec {weights} comme poids (p,h,c)."""
+    ax.text(0.5, -0.1,text,transform=ax.transAxes,ha='center', va='center')
 
 
-def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr):
+def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr,weights):
     """Plot the graphs"""
     ### INTI ###
     filtered_coordinates = []
@@ -500,7 +505,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_len
     ax2.set_title('Surface')
 
     ### SHOW MAP ###
-    show_map(map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr)
+    show_map(map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr,weights)
 
 
 ######################################## MAIN ########################################################################################################################
@@ -508,7 +513,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_len
 
 def main():
     ### Parameters ###
-    seed = 2
+    seed = 1
     rd.seed(seed)
     gen_length = 2000  #number of parents in a generation
     gen_nbr = 2000 #number of generations
@@ -517,7 +522,7 @@ def main():
     max_iter = 15  #maximum number of tries to find a field that fits the budget
     budget = 50
     # Promethee parameters #
-    weights = (0.7,0.5,0.7) #weights of the criteria (production,habitation,compacity)
+    weights = (0.1,0.1,1) #weights of the criteria (production,habitation,compacity)
     preference = ((2,15),(0.5,6),(0.1,10)) #preference of the criteria (min,max) (production,habitation,compacity)
 
     ### Data ###
@@ -534,7 +539,7 @@ def main():
     best_solution_score = scores[promethee_score_list[0][0]]
 
     ### Plot ###
-    plot_graphs(scores,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr)
+    plot_graphs(scores,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr,weights)
     plt.show()
 
 
