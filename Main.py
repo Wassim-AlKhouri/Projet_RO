@@ -132,13 +132,13 @@ def read_data():
     return cost_matrix,production_matrix,map_matrix,habitation_list,free_fields
 
 
-def write_result(best_solution,seed,gen_length,gen_nbr,best_score):
+def write_result(best_solution,seed,gen_length,gen_nbr,best_score,weight_production,weight_habitation,weight_compacity,production_pref,habitation_pref,compacity_pref):
     """Write the results in a csv file"""
     file_path = f'results\\result_{seed}_{gen_length}_{gen_nbr}.csv'
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w') as f:
-        f.write('best solution,score(production,habitaion,compacity)\n')
-        f.write(f'{best_solution},{best_score}')
+        f.write('best solution;score_production;score_habitaion;score_compacity;seed;gen_length;gen_nbr;weight_production;weight_habitation;weight_compacity;prdouction_pref;habitation_pref;compacity_pref\n')
+        f.write(f'{best_solution};{best_score[0]};{best_score[1]};{best_score[2]};{seed};{gen_length};{gen_nbr};{weight_production};{weight_habitation};{weight_compacity};{production_pref};{habitation_pref};{compacity_pref}')
 
 
 ######################################## GEN ########################################################################################################################
@@ -522,7 +522,7 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_len
 
 def main():
     ### Parameters ###
-    seed = 779865
+    seed = 1
     rd.seed(seed)
     gen_length = 2000  #number of parents in a generation
     gen_nbr = 1 #number of generations
@@ -548,7 +548,7 @@ def main():
     best_solution_score = scores[promethee_score_list[0][0]]
 
     ### Write the solution in a file ###
-    write_result(best_solution,seed,gen_length,gen_nbr,best_solution_score)
+    write_result(best_solution,seed,gen_length,gen_nbr,best_solution_score,weights[0],weights[1],weights[2],preference[0],preference[1],preference[2])
 
 
     ### Plot ###
