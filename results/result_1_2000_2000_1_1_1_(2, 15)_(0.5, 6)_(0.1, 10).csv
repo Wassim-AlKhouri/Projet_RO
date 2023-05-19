@@ -1,0 +1,2 @@
+best solution;score_production;score_habitaion;score_compacity;seed;gen_length;gen_nbr;weight_production;weight_habitation;weight_compacity;prdouction_pref;habitation_pref;compacity_pref
+[(31, 56), (29, 57), (29, 56), (27, 57), (25, 57), (28, 55), (29, 55), (31, 55), (26, 57), (28, 56), (25, 56), (28, 57)];72;46.812291624485646;0.84;1;2000;2000;1;1;1;(2, 15);(0.5, 6);(0.1, 10)
