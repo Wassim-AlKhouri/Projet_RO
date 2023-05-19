@@ -134,7 +134,7 @@ def read_data():
 
 def write_result(best_solution,seed,gen_length,gen_nbr,best_score,weight_production,weight_habitation,weight_compacity,production_pref,habitation_pref,compacity_pref):
     """Write the results in a csv file"""
-    file_path = f'results\\result_{seed}_{gen_length}_{gen_nbr}.csv'
+    file_path = f'results\\result_{seed}_{gen_length}_{gen_nbr}_{weight_production}_{weight_habitation}_{weight_compacity}_{production_pref}_{habitation_pref}_{compacity_pref}.csv'
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w') as f:
         f.write('best solution;score_production;score_habitaion;score_compacity;seed;gen_length;gen_nbr;weight_production;weight_habitation;weight_compacity;prdouction_pref;habitation_pref;compacity_pref\n')
