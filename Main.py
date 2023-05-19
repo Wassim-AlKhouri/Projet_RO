@@ -1,10 +1,10 @@
-import pandas as pd
 import random as rd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
 from tqdm import tqdm
 import math
+import os
 
 
 ######################################## BASIC FUNCTIONS ########################################################################################################################
@@ -123,12 +123,22 @@ def get_list(map_matrix, char):
 
 
 def read_data():
+    """Read the data from the files and return the data in miltiple matrices and lists"""
     cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
     production_matrix = get_matrix('donnes_V2\Production_map.txt')
     map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
     habitation_list = get_list(map_matrix,'C')
     free_fields = get_list(map_matrix,' ')
     return cost_matrix,production_matrix,map_matrix,habitation_list,free_fields
+
+
+def write_result(best_solution,seed,gen_length,gen_nbr,best_score):
+    """Write the results in a csv file"""
+    file_path = f'results\\result_{seed}_{gen_length}_{gen_nbr}.csv'
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, 'w') as f:
+        f.write('best solution,score(production,habitaion,compacity)\n')
+        f.write(f'{best_solution},{best_score}')
 
 
 ######################################## GEN ########################################################################################################################
@@ -410,12 +420,11 @@ def promethee(score1,score2,weights,preference):
             difference = score1[i] - score2[i]
         else : #Criteria to minimize (habitation and compacity)
             difference = score2[i] - score1[i]
-        if(difference > 0):
-            if(difference > preference[i][0]):
-                if(difference < preference[i][1]):
-                    score += weights[i]*(difference-preference[i][0])/(preference[i][1]-preference[i][0])
-                else:
-                    score += weights[i]
+        if(difference > preference[i][0]):
+            if(difference < preference[i][1]):
+                score += weights[i]*(difference-preference[i][0])/(preference[i][1]-preference[i][0])
+            else:
+                score += weights[i]
     return score
 
 
@@ -513,16 +522,16 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_len
 
 def main():
     ### Parameters ###
-    seed = 1
+    seed = 779865
     rd.seed(seed)
     gen_length = 2000  #number of parents in a generation
-    gen_nbr = 2000 #number of generations
+    gen_nbr = 1 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
     max_iter = 15  #maximum number of tries to find a field that fits the budget
     budget = 50
     # Promethee parameters #
-    weights = (0.1,0.1,1) #weights of the criteria (production,habitation,compacity)
+    weights = (1,1,1) #weights of the criteria (production,habitation,compacity)
     preference = ((2,15),(0.5,6),(0.1,10)) #preference of the criteria (min,max) (production,habitation,compacity)
 
     ### Data ###
@@ -537,6 +546,10 @@ def main():
     promethee_score_list = calculate_promethee_score(scores,weights,preference)
     best_solution = solutions[promethee_score_list[0][0]]
     best_solution_score = scores[promethee_score_list[0][0]]
+
+    ### Write the solution in a file ###
+    write_result(best_solution,seed,gen_length,gen_nbr,best_solution_score)
+
 
     ### Plot ###
     plot_graphs(scores,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr,weights)
