@@ -153,7 +153,7 @@ def generate_parent(free_fields,budget,cost_matrix,max_iter):
         cost = int(cost_matrix[parent[-1][0]][parent[-1][1]])
         if(parent_budget +cost > budget):
             parent.remove(parent[-1])
-            for i in range(max_iter): #a set number of iteration to be able to fill the budget as closely as possible
+            for _ in range(max_iter): #a set number of iteration to be able to fill the budget as closely as possible
                 field = get_random_from_list(free_fields,parent)
                 cost = int(cost_matrix[field[0]][field[1]])
                 if(parent_budget +cost <= budget):
@@ -398,17 +398,6 @@ def update_pareto(pareto_list,score_list,gen):
     return pareto_list
 
 
-def test_pareto(pareto_list):
-    """Test if the pareto list is correct"""
-    for i in range(len(pareto_list)):
-        for j in range(len(pareto_list)):
-            if(i != j):
-                if(pareto_list[i][1][0] >= pareto_list[j][1][0] and pareto_list[i][1][1] <= pareto_list[j][1][1] and pareto_list[i][1][2] <= pareto_list[j][1][2]):
-                    print("Pareto error")
-                    return False
-    return True
-
-
 ######################################## PROMETHEE ########################################################################################################################
 
 
@@ -550,21 +539,9 @@ def main():
     ### Write the solution in a file ###
     write_result(best_solution,seed,gen_length,gen_nbr,best_solution_score,weights[0],weights[1],weights[2],preference[0],preference[1],preference[2])
 
-
     ### Plot ###
     plot_graphs(scores,map_matrix,best_solution,best_solution_score,gen_length,seed,gen_nbr,weights)
     plt.show()
-
-
-    # A enlever
-    prod,hab,comp = score_lists(scores)
-    print("Best production score:",prod[-1][1][0])
-    print("Best habitation score:",hab[-1][1][1])
-    print("Best compacity score:",comp[-1][1][2])
-    print(test_pareto(pareto_list))
-     
-    print("PHC",best_solution_score)
-    print("budget",get_budget(best_solution,cost_matrix))
 
 
 if __name__ == '__main__':
