@@ -122,11 +122,11 @@ def get_list(map_matrix, char):
     return habitation_list
 
 
-def read_data():
+def read_data(cost_file_path,production_file_path,map_file_path):
     """Read the data from the files and return the data in miltiple matrices and lists"""
-    cost_matrix = get_matrix('donnes_V2\Cost_map.txt')
-    production_matrix = get_matrix('donnes_V2\Production_map.txt')
-    map_matrix = get_matrix('donnes_V2\\Usage_map.txt')
+    cost_matrix = get_matrix(cost_file_path)
+    production_matrix = get_matrix(production_file_path)
+    map_matrix = get_matrix(map_file_path)
     habitation_list = get_list(map_matrix,'C')
     free_fields = get_list(map_matrix,' ')
     return cost_matrix,production_matrix,map_matrix,habitation_list,free_fields
@@ -514,17 +514,21 @@ def main():
     seed = rd.randint(0,1000000)
     rd.seed(seed)
     gen_length = 2000  #number of parents in a generation
-    gen_nbr = 2000 #number of generations
+    gen_nbr = 1 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
     max_iter = 15  #maximum number of tries to find a field that fits the budget
     budget = 50
+    cost_file_path = 'donnes_V2\\Cost_map.txt'
+    production_file_path = 'donnes_V2\\Production_map.txt'
+    map_file_path = 'donnes_V2\\Usage_map.txt'
+
     # Promethee parameters #
     weights = (0.7,0.3,0.5) #weights of the criteria (production,habitation,compacity)
     preference = ((2,15),(0.5,6),(0.1,10)) #preference of the criteria (min,max) (production,habitation,compacity)
 
     ### Data ###
-    cost_matrix, production_matrix, map_matrix, habitation_list, free_fields = read_data()
+    cost_matrix, production_matrix, map_matrix, habitation_list, free_fields = read_data(cost_file_path, production_file_path, map_file_path)
     distance_matrix = [[-1 for _ in range(len(map_matrix[j]))] for j in range(len(map_matrix))] # a matrix to store the average distance between a field and the habitations
 
     ### Genetic Algorithm ###
