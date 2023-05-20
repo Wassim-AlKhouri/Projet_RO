@@ -511,18 +511,20 @@ def plot_graphs(coordinates,map_matrix,best_solution,best_solution_score,gen_len
 
 def main():
     ### Parameters ###
+    # Seed #
     seed = rd.randint(0,1000000)
     rd.seed(seed)
+    # Genetic algorithm parameters #
     gen_length = 2000  #number of parents in a generation
     gen_nbr = 1 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
     max_iter = 15  #maximum number of tries to find a field that fits the budget
     budget = 50
+    # Files #
     cost_file_path = 'donnes_V2\\Cost_map.txt'
     production_file_path = 'donnes_V2\\Production_map.txt'
     map_file_path = 'donnes_V2\\Usage_map.txt'
-
     # Promethee parameters #
     weights = (0.7,0.3,0.5) #weights of the criteria (production,habitation,compacity)
     preference = ((2,15),(0.5,6),(0.1,10)) #preference of the criteria (min,max) (production,habitation,compacity)
