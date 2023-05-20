@@ -233,7 +233,7 @@ def generate_new_gen(old_gen,score_list,elite_portion,mutate_rate,budget,cost_ma
     fitness_list = [] #List of tuples (index,fitness)
     production_score_list,average_distance_list,compacity_score_list = score_lists(score_list)
     for i in range(len(old_gen)):
-        fitness_list.append((i,calculate_fitness(i,weights,production_score_list,average_distance_list,compacity_score_list)))
+        fitness_list.append((i,calculate_fitness(i,production_score_list,average_distance_list,compacity_score_list)))
     fitness_list.sort(key=lambda x: x[1],reverse=True)
     for i in range(elite_length):
         new_gen.append(old_gen[fitness_list[i][0]])
@@ -325,7 +325,7 @@ def score_lists(score_list):
     return production_score_list,habitation_score_list,compacity_score_list
 
 
-def calculate_fitness(solution_index,weights,production_score_list,habitation_score_list,compacity_score_list):
+def calculate_fitness(solution_index,production_score_list,habitation_score_list,compacity_score_list):
     """Calculate the fitness of a parent, returns a float"""
     prod_index = get_score_lists_index(solution_index,production_score_list)
     hab_index = get_score_lists_index(solution_index,habitation_score_list)
@@ -516,7 +516,7 @@ def main():
     rd.seed(seed)
     # Genetic algorithm parameters #
     gen_length = 2000  #number of parents in a generation
-    gen_nbr = 1 #number of generations
+    gen_nbr = 5 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
     max_iter = 15  #maximum number of tries to find a field that fits the budget
