@@ -516,7 +516,7 @@ def main():
     rd.seed(seed)
     # Genetic algorithm parameters #
     gen_length = 2000  #number of parents in a generation
-    gen_nbr = 5 #number of generations
+    gen_nbr = 2000 #number of generations
     elite_portion = 0.5  #portion of the best parents that will be kept in the next generation
     mutate_rate = 0.5  #rate of mutation
     max_iter = 15  #maximum number of tries to find a field that fits the budget
